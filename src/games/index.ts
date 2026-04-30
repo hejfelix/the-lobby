@@ -9,19 +9,19 @@ import { ConstructionGame } from "./construction";
 import { MarketGame } from "./market";
 
 export const GAMES: Game[] = [
-  SketchGame,
-  PollsGame,
-  HoopsEasyGame,
-  HoopsHardGame,
-  HoopsExtremeGame,
-  ClickerGame,
-  WordleGame,
-  ReactionGame,
-  ConstructionGame,
-  MarketGame,
+    SketchGame,
+    PollsGame,
+    HoopsEasyGame,
+    HoopsHardGame,
+    HoopsExtremeGame,
+    ClickerGame,
+    WordleGame,
+    ReactionGame,
+    ConstructionGame,
+    MarketGame,
 ];
 
 export function findGame(id: string | null): Game | undefined {
-  if (!id) return undefined;
-  return GAMES.find((g) => g.id === id);
+    if (!id) return undefined;
+    return GAMES.find((g) => g.id === id);
 }
