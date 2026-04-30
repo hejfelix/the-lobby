@@ -1,0 +1,67 @@
+{
+    "tracks": [
+        {
+            "title": "Carefree",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "carefree.mp3",
+            "mood": "playful"
+        },
+        {
+            "title": "Wallpaper",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "wallpaper.mp3",
+            "mood": "ambient"
+        },
+        {
+            "title": "Local Forecast",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "local-forecast.mp3",
+            "mood": "warm"
+        },
+        {
+            "title": "Easy Lemon",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "easy-lemon.mp3",
+            "mood": "lounge"
+        },
+        {
+            "title": "Monkeys Spinning Monkeys",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "monkeys-spinning-monkeys.mp3",
+            "mood": "quirky"
+        },
+        {
+            "title": "Bushwick Tarantella",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "bushwick-tarantella.mp3",
+            "mood": "upbeat"
+        },
+        {
+            "title": "Pixelland",
+            "artist": "Kevin MacLeod",
+            "license": "CC-BY-4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+            "sourceUrl": "https://incompetech.com/music/royalty-free/music.html",
+            "file": "pixelland.mp3",
+            "mood": "8-bit"
+        }
+    ]
+}

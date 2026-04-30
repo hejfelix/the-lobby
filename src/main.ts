@@ -2,6 +2,7 @@ import { Net, randomColor } from "./net";
 import { GAMES, findGame } from "./games";
 import type { GameInstance } from "./games/game";
 import { loadAvatarFromStorage, renderAvatarSvg, renderCharacterCreator } from "./avatar";
+import { LobbyMusic } from "./lobby-music";
 
 const APP_ID = "fun-games-v1";
 const root = document.getElementById("root")!;
@@ -85,6 +86,7 @@ function startApp({ name, room }: JoinForm) {
             <span class="conn-spinner" aria-hidden="true"></span>
             <span class="conn-text">Connecting…</span>
           </span>
+          <div id="lobby-music" class="lobby-music-host"></div>
         </div>
         <div class="peers" id="peers"></div>
       </header>
@@ -243,6 +245,10 @@ function startApp({ name, room }: JoinForm) {
     // Default view: the game lobby.
     setGame(null);
     flash(`Joined room "${room}"`);
+
+    // Boot the collaborative lobby music player. Lives across game switches.
+    const musicHost = root.querySelector<HTMLDivElement>("#lobby-music")!;
+    new LobbyMusic(musicHost, net);
 }
 
 function renderGameLobby(host: HTMLElement, net: Net, onPick: (g: typeof GAMES[number]) => void) {
