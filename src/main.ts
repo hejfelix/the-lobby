@@ -270,6 +270,7 @@ function renderGameLobby(host: HTMLElement, net: Net, onPick: (g: typeof GAMES[n
         card.innerHTML = `
       <div class="game-card-name">${escapeHtml(g.name)}</div>
       <div class="game-card-desc">${escapeHtml(g.description)}</div>
+      ${g.badge ? `<div class="game-card-badge">${g.badge}</div>` : ""}
     `;
         card.onclick = () => onPick(g);
         grid.appendChild(card);
