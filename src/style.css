@@ -2197,6 +2197,72 @@ label {
     min-height: 200px;
 }
 
+.market-influences {
+    position: absolute;
+    top: 56px;
+    left: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.market-inf-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px 4px 6px;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(4px);
+}
+
+.market-inf-label {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+}
+
+.market-inf-pump .market-inf-label {
+    color: #2d8a4f;
+}
+
+.market-inf-tank .market-inf-label {
+    color: #b3401e;
+}
+
+.market-inf-avatars {
+    display: inline-flex;
+    align-items: center;
+}
+
+.market-inf-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--panel);
+    overflow: hidden;
+    background: var(--panel-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: -8px;
+    pointer-events: auto;
+}
+
+.market-inf-avatar:first-child {
+    margin-left: 0;
+}
+
+.market-inf-avatar svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
 .market-position {
     display: flex;
     flex-direction: column;
@@ -2366,57 +2432,105 @@ label {
     background: #2d8a4f;
     border-color: #1f6638;
 }
+
 /* Lobby music player (lives in topbar, persists across games). */
-.lobby-music-host { display: inline-flex; }
+.lobby-music-host {
+    display: inline-flex;
+}
+
 .music-player {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 8px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
 }
+
 .music-btn {
-  width: 24px; height: 24px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--text);
-  border-radius: 4px;
-  padding: 0;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    border-radius: 4px;
+    padding: 0;
 }
-.music-btn:hover { background: rgba(0,0,0,0.06); }
-.music-play.music-muted { color: var(--accent); }
+
+.music-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.music-play.music-muted {
+    color: var(--accent);
+}
+
 .music-info {
-  display: flex; flex-direction: column; line-height: 1.1;
-  min-width: 90px; max-width: 140px;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    min-width: 90px;
+    max-width: 140px;
 }
-.music-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.music-mood { color: var(--muted); font-size: 10px; }
+
+.music-title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.music-mood {
+    color: var(--muted);
+    font-size: 10px;
+}
+
 .music-vol {
-  width: 60px;
-  accent-color: var(--accent);
+    width: 60px;
+    accent-color: var(--accent);
 }
+
 @media (max-width: 720px) {
-  .music-info { display: none; }
-  .music-vol { width: 40px; }
+    .music-info {
+        display: none;
+    }
+
+    .music-vol {
+        width: 40px;
+    }
 }
 
 .music-credit {
-  font-size: 9px;
-  color: var(--muted);
-  text-decoration: none;
-  padding: 2px 5px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 2px 5px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: var(--mono);
 }
-.music-credit:hover { color: var(--accent); border-color: var(--accent); }
-.music-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.music-credit:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.music-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
-  .music-credit { display: none !important; }
+    .music-credit {
+        display: none !important;
+    }
 }
 
 /* ── Stickman Brawl ─────────────────────────────────────────────────────────── */

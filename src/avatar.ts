@@ -107,7 +107,32 @@ export function renderAvatarSvg(avatar: Avatar | undefined, size: number, _accen
         opts.backgroundColor = [a.bg];
         opts.backgroundType = ["solid"];
     }
-    return createAvatar(style, opts).toString();
+    return uniquifySvgIds(createAvatar(style, opts).toString());
+}
+
+let svgIdCounter = 0;
+
+/**
+ * DiceBear SVGs reuse fixed IDs (e.g. `viewboxMask`). When several avatars
+ * are mounted in the same DOM, the duplicated IDs collide and browsers
+ * apply the last definition to every `url(#...)` reference, which crops
+ * earlier avatars. Suffix every id and matching url(#…)/href reference
+ * with a unique counter to keep them isolated.
+ */
+function uniquifySvgIds(svg: string): string {
+    const suffix = `-u${++svgIdCounter}`;
+    const ids = new Set<string>();
+    for (const m of svg.matchAll(/\sid="([^"]+)"/g)) ids.add(m[1]);
+    if (ids.size === 0) return svg;
+    let out = svg;
+    for (const id of ids) {
+        const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        out = out
+            .replace(new RegExp(`(\\sid=")${escaped}(")`, "g"), `$1${id}${suffix}$2`)
+            .replace(new RegExp(`(url\\(#)${escaped}(\\))`, "g"), `$1${id}${suffix}$2`)
+            .replace(new RegExp(`((?:xlink:)?href=")#${escaped}(")`, "g"), `$1#${id}${suffix}$2`);
+    }
+    return out;
 }
 
 interface CreatorOptions {
