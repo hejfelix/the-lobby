@@ -461,6 +461,11 @@ label {
     color: var(--muted);
     font-size: 13px;
 }
+.game-card-badge {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
 
 /* Generic two-column game layout used by sketch + polls */
 .game-layout {
@@ -2526,4 +2531,234 @@ label {
     .music-credit {
         display: none !important;
     }
+}
+
+/* ── Stickman Brawl ─────────────────────────────────────────────────────────── */
+
+.stickman-layout {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #87ceeb;
+}
+.stickman-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.stickman-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #eee;
+}
+.stickman-timer {
+  align-self: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #222;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
+  font-family: var(--mono);
+}
+.stickman-hp-bar {
+  width: 200px;
+  height: 20px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  align-self: center;
+}
+.stickman-hp-bar span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 11px;
+  text-shadow: 0 1px 2px #000;
+}
+.stickman-hp-fill {
+  height: 100%;
+  transition: width 0.15s;
+}
+.stickman-cooldowns {
+  display: flex;
+  gap: 12px;
+  align-self: center;
+}
+.stickman-cd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+}
+.stickman-cd-bar {
+  width: 100px;
+  height: 8px;
+  background: #333;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.stickman-cd-fill {
+  height: 100%;
+  transition: width 0.1s;
+}
+.stickman-respawn {
+  align-self: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ff6b6b;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  margin-top: 20px;
+}
+.stickman-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  font-size: 10px;
+  color: #888;
+}
+.stickman-scores {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+.stickman-score-row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 100px;
+}
+.stickman-game-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.75);
+  z-index: 10;
+}
+.stickman-game-over.hidden {
+  display: none;
+}
+.stickman-go-inner {
+  background: #222;
+  border-radius: 12px;
+  padding: 32px 48px;
+  text-align: center;
+  color: #eee;
+}
+.stickman-go-inner h2 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+.stickman-go-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stickman-go-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 14px;
+}
+.stickman-restart-btn {
+  margin-top: 20px;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: bold;
+  background: var(--accent, #4caf50);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.stickman-restart-btn:hover {
+  opacity: 0.85;
+}
+.stickman-mode {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  pointer-events: auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stickman-mode-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: #555;
+  transition: color 0.2s;
+}
+.stickman-mode .stickman-mode-left {
+  color: #4caf50;
+}
+.stickman-mode .stickman-mode-right {
+  color: #999;
+}
+.stickman-mode.active .stickman-mode-left {
+  color: #999;
+}
+.stickman-mode.active .stickman-mode-right {
+  color: #f44336;
+}
+.stickman-toggle {
+  width: 36px;
+  height: 20px;
+  background: #4caf50;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+.stickman-mode.active .stickman-toggle {
+  background: #f44336;
+}
+.stickman-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: left 0.2s;
+}
+.stickman-mode.active .stickman-toggle-knob {
+  left: 19px;
+}
+.stickman-weapon {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #ffd700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stickman-weapon-dur {
+  color: #aaa;
+  font-weight: normal;
 }

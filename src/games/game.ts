@@ -9,6 +9,8 @@ export interface Game {
     readonly id: string;
     readonly name: string;
     readonly description: string;
+    /** Optional raw HTML badge shown below description on the game card. */
+    readonly badge?: string;
     /** Mount the game UI into `container`, using `net` for P2P. */
     create(container: HTMLElement, net: Net): GameInstance;
 }
