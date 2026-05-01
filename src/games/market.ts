@@ -1,5 +1,6 @@
 import type { Game, GameInstance } from "./game";
 import type { Net, GameNamespace } from "../net";
+import { renderAvatarSvg } from "../avatar";
 
 /**
  * Stock Market
@@ -88,6 +89,7 @@ class MarketInstance {
     private positionEl!: HTMLDivElement;
     private valueEl!: HTMLDivElement;
     private leaderboardEl!: HTMLDivElement;
+    private influencesEl!: HTMLDivElement;
     private pumpBtn!: HTMLButtonElement;
     private tankBtn!: HTMLButtonElement;
     private inactivityEl!: HTMLDivElement;
@@ -176,6 +178,7 @@ class MarketInstance {
         <section class="market-stage">
           <div class="market-price"></div>
           <canvas class="market-canvas"></canvas>
+          <div class="market-influences"></div>
           <div class="market-actionbar">
             <div class="market-timer">
               <svg viewBox="0 0 80 80" width="80" height="80">
@@ -201,6 +204,7 @@ class MarketInstance {
         this.positionEl = container.querySelector<HTMLDivElement>(".market-position")!;
         this.valueEl = container.querySelector<HTMLDivElement>(".market-value")!;
         this.leaderboardEl = container.querySelector<HTMLDivElement>(".market-leaderboard")!;
+        this.influencesEl = container.querySelector<HTMLDivElement>(".market-influences")!;
         this.pumpBtn = container.querySelector<HTMLButtonElement>(".market-pump")!;
         this.tankBtn = container.querySelector<HTMLButtonElement>(".market-tank")!;
         this.inactivityEl = container.querySelector<HTMLDivElement>(".market-inactivity")!;
@@ -567,9 +571,16 @@ class MarketInstance {
             else tanks++;
         }
         if (pumps > 0 || tanks > 0) {
-            const net = pumps - tanks;
-            c.fillStyle = net > 0 ? `rgba(45,160,80,${Math.min(0.18, 0.05 * pumps)})` : `rgba(200,60,60,${Math.min(0.18, 0.05 * tanks)})`;
-            c.fillRect(0, 0, w, h);
+            // Tint pump and tank independently so simultaneous PUMP+TANK
+            // shows up as both colors layered (not just the net winner).
+            if (pumps > 0) {
+                c.fillStyle = `rgba(45,160,80,${Math.min(0.18, 0.05 * pumps)})`;
+                c.fillRect(0, 0, w, h);
+            }
+            if (tanks > 0) {
+                c.fillStyle = `rgba(200,60,60,${Math.min(0.18, 0.05 * tanks)})`;
+                c.fillRect(0, 0, w, h);
+            }
         }
 
         // Price line.
@@ -592,14 +603,39 @@ class MarketInstance {
         c.arc(w - 2, lastY, 4, 0, Math.PI * 2);
         c.fill();
 
-        // Influence indicator pill in top-left.
-        if (pumps > 0 || tanks > 0) {
-            const label = pumps > 0 ? `PUMP x${pumps}` : `TANK x${tanks}`;
-            c.font = "600 12px ui-sans-serif, system-ui, sans-serif";
-            c.fillStyle = pumps > 0 ? "#2d8a4f" : "#b3401e";
-            c.textAlign = "left";
-            c.fillText(label, 8, 16);
+        // Influence indicator overlay (avatars of each pumping/tanking peer).
+        this.renderInfluenceOverlay();
+    }
+
+    private renderInfluenceOverlay() {
+        const me = this.net.me;
+        const groups: Record<"pump" | "tank", Array<{ name: string; svg: string; color: string }>> = {
+            pump: [],
+            tank: [],
+        };
+        for (const inf of this.influences) {
+            const isMe = inf.ownerId === me.id;
+            const peer = isMe ? me : this.net.peers.get(inf.ownerId);
+            if (!peer) continue;
+            groups[inf.kind].push({
+                name: peer.name + (isMe ? " (you)" : ""),
+                svg: renderAvatarSvg(peer.avatar, 28, peer.color),
+                color: peer.color,
+            });
         }
+        const renderRow = (label: string, klass: string, items: typeof groups.pump) => {
+            if (items.length === 0) return "";
+            const avatars = items
+                .map(
+                    (it) =>
+                        `<span class="market-inf-avatar" title="${escapeAttr(it.name)}" style="border-color:${escapeAttr(it.color)}">${it.svg}</span>`,
+                )
+                .join("");
+            return `<div class="market-inf-row ${klass}"><span class="market-inf-label">${label} \u00d7${items.length}</span><span class="market-inf-avatars">${avatars}</span></div>`;
+        };
+        const html = renderRow("PUMP", "market-inf-pump", groups.pump) +
+            renderRow("TANK", "market-inf-tank", groups.tank);
+        if (this.influencesEl.innerHTML !== html) this.influencesEl.innerHTML = html;
     }
 
     private startResizeWatcher() {
