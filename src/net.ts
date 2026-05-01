@@ -51,6 +51,7 @@ interface Events {
     peers: void;
     chat: ChatEntry;
     game: string | null;
+    join: { id: string; name: string; color: string };
 }
 
 export class Net {
@@ -65,6 +66,7 @@ export class Net {
         peers: new Set(),
         chat: new Set(),
         game: new Set(),
+        join: new Set(),
     };
 
     // Actions on the shared "core" namespace.
@@ -129,7 +131,11 @@ export class Net {
                 avatar: sanitizeAvatar(data?.avatar),
             });
             this.emit("peers");
-            if (isNew) this.pushSystem(`${this.peers.get(peerId)!.name} joined.`);
+            if (isNew) {
+                const peer = this.peers.get(peerId)!;
+                this.pushSystem(`${peer.name} joined.`);
+                this.emit("join", { id: peerId, name: peer.name, color: peer.color });
+            }
         });
 
         onChat((data, peerId) => {

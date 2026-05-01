@@ -2762,3 +2762,134 @@ label {
   color: #aaa;
   font-weight: normal;
 }
+
+/* Flappy Lobby */
+.flappy-layout {
+    grid-template-columns: 260px 1fr;
+}
+
+.flappy-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px 16px;
+    gap: 12px;
+    overflow-y: auto;
+    background: var(--panel-2);
+}
+
+.flappy-status {
+    font-size: 14px;
+    color: var(--muted);
+    min-height: 1.4em;
+    font-weight: 600;
+}
+
+.flappy-canvas {
+    background: #7ec8e3;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    touch-action: none;
+    max-width: 100%;
+    height: auto;
+}
+
+.flappy-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.flappy-stat-val {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--text);
+}
+
+.flappy-restart {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.flappy-restart:hover {
+    background: var(--accent-hover);
+}
+
+.flappy-leader-wrap h3 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.flappy-leader {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.flappy-leader-row {
+    display: grid;
+    grid-template-columns: 22px 12px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.flappy-leader-row.mine {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.flappy-rank {
+    font-family: var(--mono);
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.flappy-leader-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.flappy-leader-score {
+    font-family: var(--mono);
+    font-weight: 600;
+}
+
+.flappy-live {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.flappy-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+@media (max-width: 720px) {
+    .flappy-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fanfare-toggle.muted {
+    opacity: 0.55;
+}
