@@ -9,6 +9,7 @@ import { ConstructionGame } from "./construction";
 import { MarketGame } from "./market";
 import { StickmanGame } from "./stickman";
 import { FlappyGame } from "./flappy";
+import { MinigolfGame } from "./minigolf";
 
 export const GAMES: Game[] = [
     SketchGame,
@@ -23,6 +24,7 @@ export const GAMES: Game[] = [
     MarketGame,
     StickmanGame,
     FlappyGame,
+    MinigolfGame,
 ];
 
 export function findGame(id: string | null): Game | undefined {
