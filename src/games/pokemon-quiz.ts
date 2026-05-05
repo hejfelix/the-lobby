@@ -2,7 +2,7 @@ import type { Game, GameInstance } from "./game";
 import type { Net, GameNamespace } from "../net";
 
 /**
- * Pokémon Quiz — host-driven trivia rounds with five question types.
+ * Pokémon Quiz — host-driven trivia rounds with several question types.
  *
  * The peer with the lowest peer ID acts as the host: it picks a round type,
  * fetches data from PokéAPI, and broadcasts a `question` payload. Every peer
@@ -15,12 +15,19 @@ import type { Net, GameNamespace } from "../net";
  *   3. dual-type     — sprite, choose the full Type/Type combo (4 options)
  *   4. stat-showdown — two sprites, pick the one with higher base stat total
  *   5. move-master   — list of 4 moves, guess the Pokémon (4 options)
+ *   6. evolution     — sprite, pick what it evolves to/from (4 options)
+ *   7. order-size    — drag four Pokémon into ascending height order
+ *   8. order-weight  — drag four Pokémon into ascending weight order
  *
  * Late join: newcomer asks `sync-request`; host responds with the current
  * question + scoreboard so the newcomer drops straight into the active round.
  */
 
-const POOL_SIZE = 151; // Gen 1 — recognisable enough for a casual quiz.
+// Pokémon pool sizes per difficulty (national-dex IDs from 1 to N).
+//   Easy   = Gen 1            (1–151)
+//   Medium = Gens 1–3          (1–386)
+//   Hard   = Gens 1–9 (all)    (1–1025)
+const POOL_SIZES = { easy: 151, medium: 386, hard: 1025 } as const;
 const ROUND_DURATION_MS = 20_000;
 const REVEAL_DURATION_MS = 4_000;
 const PICK_DELAY_MS = 1_000; // tiny pause before the next round begins.
@@ -32,7 +39,9 @@ type RoundType =
     | "dual-type"
     | "stat-showdown"
     | "move-master"
-    | "evolution";
+    | "evolution"
+    | "order-size"
+    | "order-weight";
 
 const ROUND_LABELS: Record<RoundType, string> = {
     "whos-that": "Who's that Pokémon?",
@@ -41,6 +50,8 @@ const ROUND_LABELS: Record<RoundType, string> = {
     "stat-showdown": "Stat showdown — who's stronger?",
     "move-master": "Move Master — name the Pokémon",
     "evolution": "Evolution chain",
+    "order-size": "Order by size (smallest → largest)",
+    "order-weight": "Order by weight (lightest → heaviest)",
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -66,7 +77,12 @@ interface Question {
     options: string[]; // displayed labels
     /** Optional sprite URL per option (parallel to `options`). */
     optionImages?: string[];
-    correctIdx: number;
+    /** Optional metadata per option, shown after the reveal (e.g. "1.0 m"). */
+    optionMeta?: string[];
+    /** Multiple-choice answer (single index). Undefined for ordering rounds. */
+    correctIdx?: number;
+    /** Ordering rounds: canonical option order from smallest → largest. */
+    correctOrder?: number[];
     revealName: string; // canonical name to show on reveal
     deadline: number; // Date.now() ms
     hostId: string;
@@ -74,7 +90,8 @@ interface Question {
 
 interface Reveal {
     id: string;
-    correctIdx: number;
+    correctIdx?: number;
+    correctOrder?: number[];
     revealName: string;
     revealImages: string[]; // un-silhouetted versions
     scores: Record<string, number>;
@@ -86,6 +103,10 @@ interface Reveal {
 interface ApiPokemon {
     id: number;
     name: string;
+    /** PokeAPI returns height in decimetres. */
+    height: number;
+    /** PokeAPI returns weight in hectograms. */
+    weight: number;
     sprites: {
         other?: {
             "official-artwork"?: { front_default?: string | null };
@@ -154,6 +175,18 @@ function spriteUrl(p: ApiPokemon): string {
 
 function bst(p: ApiPokemon): number {
     return p.stats.reduce((s, x) => s + x.base_stat, 0);
+}
+
+function isOrderingRound(t: RoundType): boolean {
+    return t === "order-size" || t === "order-weight";
+}
+
+function formatHeight(decimetres: number): string {
+    return `${(decimetres / 10).toFixed(1)} m`;
+}
+
+function formatWeight(hectograms: number): string {
+    return `${(hectograms / 10).toFixed(1)} kg`;
 }
 
 function cleanFlavor(text: string, name: string): string {
@@ -236,29 +269,74 @@ function findEvoNode(
 
 // ---------- game ----------
 
-export const PokemonQuizGame: Game = {
+interface QuizConfig {
+    id: string;
+    name: string;
+    description: string;
+    badge: string;
+    poolSize: number;
+    /** Trystero namespace — distinct per difficulty so messages don't cross. */
+    ns: string;
+}
+
+function makeQuizGame(cfg: QuizConfig): Game {
+    return {
+        id: cfg.id,
+        name: cfg.name,
+        description: cfg.description,
+        badge: cfg.badge,
+        create(container, net): GameInstance {
+            const inst = new PokemonQuizInstance(container, net, cfg);
+            return { unmount: () => inst.destroy() };
+        },
+    };
+}
+
+export const PokemonQuizEasyGame: Game = makeQuizGame({
     id: "pokemon-quiz",
-    name: "Pokémon Quiz",
+    name: "Pokémon Quiz — Easy",
     description:
-        "Six-round trivia powered by PokéAPI. Silhouettes, dex blurbs, dual types, stat showdowns, move sets and evolution chains.",
+        "Eight-round trivia powered by PokéAPI. Easy mode — Gen 1 only (the original 151).",
     badge: "Gen 1 · everyone votes",
-    create(container, net): GameInstance {
-        const inst = new PokemonQuizInstance(container, net);
-        return { unmount: () => inst.destroy() };
-    },
-};
+    poolSize: POOL_SIZES.easy,
+    ns: "pokemon-quiz-easy",
+});
+
+export const PokemonQuizMediumGame: Game = makeQuizGame({
+    id: "pokemon-quiz-medium",
+    name: "Pokémon Quiz — Medium",
+    description:
+        "Eight-round trivia. Medium mode — Gens 1–3 (Kanto, Johto and Hoenn).",
+    badge: "Gens 1–3 · everyone votes",
+    poolSize: POOL_SIZES.medium,
+    ns: "pokemon-quiz-medium",
+});
+
+export const PokemonQuizHardGame: Game = makeQuizGame({
+    id: "pokemon-quiz-hard",
+    name: "Pokémon Quiz — Hard",
+    description:
+        "Eight-round trivia. Hard mode — every Pokémon from Gens 1–9.",
+    badge: "All gens · everyone votes",
+    poolSize: POOL_SIZES.hard,
+    ns: "pokemon-quiz-hard",
+});
 
 class PokemonQuizInstance {
     private container: HTMLElement;
     private net: Net;
     private ns: GameNamespace;
+    private cfg: QuizConfig;
 
     private isHost = false;
     private currentQuestion: Question | null = null;
     private currentReveal: Reveal | null = null;
     private revealStartT = 0; // local clock; used to animate the next-round countdown
     private myVote: number | null = null;
-    private votes = new Map<string, number>(); // peerId → option idx (this round)
+    private myOrder: number[] | null = null; // current local order for ordering rounds
+    private orderSubmitted = false;
+    private votes = new Map<string, number>(); // peerId → option idx (this round) — also used as a "submitted" set for ordering rounds
+    private orderVotes = new Map<string, number[]>(); // peerId → submitted ordering
     private scores = new Map<string, number>(); // peerId → match score
 
     private roundNum = 0;
@@ -271,10 +349,11 @@ class PokemonQuizInstance {
     private stageEl!: HTMLDivElement;
     private sidebarEl!: HTMLDivElement;
 
-    constructor(container: HTMLElement, net: Net) {
+    constructor(container: HTMLElement, net: Net, cfg: QuizConfig) {
         this.container = container;
         this.net = net;
-        this.ns = net.namespace("pokemon-quiz");
+        this.cfg = cfg;
+        this.ns = net.namespace(cfg.ns);
 
         container.innerHTML = `
       <div class="game-layout pq-layout">
@@ -300,6 +379,8 @@ class PokemonQuizInstance {
               <li>Stat showdown</li>
               <li>Move Master</li>
               <li>Evolution chain</li>
+              <li>Order by size</li>
+              <li>Order by weight</li>
             </ul>
           </div>
         </aside>
@@ -347,18 +428,44 @@ class PokemonQuizInstance {
             this.currentQuestion = q;
             this.currentReveal = null;
             this.myVote = null;
+            this.orderSubmitted = false;
+            this.myOrder = isOrderingRound(q.type) && q.optionImages
+                ? shuffle(q.options.map((_, i) => i))
+                : null;
             this.votes.clear();
+            this.orderVotes.clear();
             this.roundNum = q.round;
             this.renderStage();
         });
 
         this.ns.on<{ id: string; idx: number }>("vote", (data, peerId) => {
             if (!this.currentQuestion || data?.id !== this.currentQuestion.id) return;
+            if (isOrderingRound(this.currentQuestion.type)) return; // wrong action for this round
             const idx = Number(data.idx);
             if (!Number.isInteger(idx) || idx < 0 || idx >= this.currentQuestion.options.length) return;
             this.votes.set(peerId, idx);
             this.renderStage();
             // Host: if everyone voted early, end the round.
+            if (this.isHost && this.votes.size >= this.net.peers.size) {
+                this.endRoundEarly();
+            }
+        });
+
+        this.ns.on<{ id: string; order: number[] }>("order-vote", (data, peerId) => {
+            const q = this.currentQuestion;
+            if (!q || data?.id !== q.id) return;
+            if (!isOrderingRound(q.type)) return;
+            if (!Array.isArray(data.order) || data.order.length !== q.options.length) return;
+            const seen = new Set<number>();
+            for (const v of data.order) {
+                const n = Number(v);
+                if (!Number.isInteger(n) || n < 0 || n >= q.options.length) return;
+                if (seen.has(n)) return;
+                seen.add(n);
+            }
+            this.orderVotes.set(peerId, data.order.map(Number));
+            this.votes.set(peerId, 0); // mark as "submitted" for early-end + voter count
+            this.renderStage();
             if (this.isHost && this.votes.size >= this.net.peers.size) {
                 this.endRoundEarly();
             }
@@ -431,6 +538,8 @@ class PokemonQuizInstance {
                 "stat-showdown",
                 "move-master",
                 "evolution",
+                "order-size",
+                "order-weight",
             ];
             const type = types[this.roundNum % types.length];
             const question = await this.buildQuestion(type, this.roundNum + 1);
@@ -442,7 +551,12 @@ class PokemonQuizInstance {
             this.currentQuestion = question;
             this.currentReveal = null;
             this.votes.clear();
+            this.orderVotes.clear();
             this.myVote = null;
+            this.orderSubmitted = false;
+            this.myOrder = isOrderingRound(question.type) && question.optionImages
+                ? shuffle(question.options.map((_, i) => i))
+                : null;
             this.roundNum = question.round;
             this.ns.send("question", question);
             this.renderStage();
@@ -468,16 +582,31 @@ class PokemonQuizInstance {
     private revealAndAdvance(): void {
         if (!this.isHost || !this.currentQuestion) return;
         const q = this.currentQuestion;
-        // Award scores: +1 per correct voter (broadcast deltas via Net).
-        for (const [peerId, idx] of this.votes) {
-            if (idx === q.correctIdx) {
-                this.scores.set(peerId, (this.scores.get(peerId) ?? 0) + 1);
-                this.net.awardScore(peerId, 1);
+        // Award scores.
+        if (isOrderingRound(q.type) && q.correctOrder) {
+            // +1 per correctly placed item (out of 4).
+            for (const [peerId, order] of this.orderVotes) {
+                let correctCount = 0;
+                for (let i = 0; i < q.correctOrder.length; i++) {
+                    if (order[i] === q.correctOrder[i]) correctCount++;
+                }
+                if (correctCount > 0) {
+                    this.scores.set(peerId, (this.scores.get(peerId) ?? 0) + correctCount);
+                    this.net.awardScore(peerId, correctCount);
+                }
+            }
+        } else {
+            for (const [peerId, idx] of this.votes) {
+                if (idx === q.correctIdx) {
+                    this.scores.set(peerId, (this.scores.get(peerId) ?? 0) + 1);
+                    this.net.awardScore(peerId, 1);
+                }
             }
         }
         const reveal: Reveal = {
             id: q.id,
             correctIdx: q.correctIdx,
+            correctOrder: q.correctOrder,
             revealName: q.revealName,
             revealImages: q.images,
             scores: Object.fromEntries(this.scores),
@@ -501,11 +630,13 @@ class PokemonQuizInstance {
             case "stat-showdown": return this.buildStatShowdown(round);
             case "move-master": return this.buildMoveMaster(round);
             case "evolution": return this.buildEvolution(round);
+            case "order-size": return this.buildOrder(round, "size");
+            case "order-weight": return this.buildOrder(round, "weight");
         }
     }
 
     private async buildWhosThat(round: number): Promise<Question | null> {
-        const ids = pickN([...Array(POOL_SIZE)].map((_, i) => i + 1), 4);
+        const ids = pickN([...Array(this.cfg.poolSize)].map((_, i) => i + 1), 4);
         const mons = await Promise.all(ids.map(fetchPokemon));
         const correct = mons[0];
         const opts = shuffle(mons.map((m) => titleCase(m.name)));
@@ -525,7 +656,7 @@ class PokemonQuizInstance {
     private async buildPokedex(round: number): Promise<Question | null> {
         // Try a handful of candidates until we find one with English flavor text.
         for (let attempt = 0; attempt < 5; attempt++) {
-            const id = 1 + Math.floor(Math.random() * POOL_SIZE);
+            const id = 1 + Math.floor(Math.random() * this.cfg.poolSize);
             const [mon, species] = await Promise.all([fetchPokemon(id), fetchSpecies(id)]);
             const flavor = pickEnglishFlavor(species, mon.name);
             if (!flavor) continue;
@@ -552,7 +683,7 @@ class PokemonQuizInstance {
     private async buildDualType(round: number): Promise<Question | null> {
         // Find a dual-type Pokémon among a few random picks.
         for (let attempt = 0; attempt < 8; attempt++) {
-            const id = 1 + Math.floor(Math.random() * POOL_SIZE);
+            const id = 1 + Math.floor(Math.random() * this.cfg.poolSize);
             const mon = await fetchPokemon(id);
             if (mon.types.length < 2) continue;
             const t1 = mon.types.find((t) => t.slot === 1)!.type.name;
@@ -583,7 +714,7 @@ class PokemonQuizInstance {
 
     private async buildStatShowdown(round: number): Promise<Question | null> {
         for (let attempt = 0; attempt < 6; attempt++) {
-            const [idA, idB] = pickN([...Array(POOL_SIZE)].map((_, i) => i + 1), 2);
+            const [idA, idB] = pickN([...Array(this.cfg.poolSize)].map((_, i) => i + 1), 2);
             const [a, b] = await Promise.all([fetchPokemon(idA), fetchPokemon(idB)]);
             const bstA = bst(a);
             const bstB = bst(b);
@@ -606,7 +737,7 @@ class PokemonQuizInstance {
 
     private async buildMoveMaster(round: number): Promise<Question | null> {
         for (let attempt = 0; attempt < 5; attempt++) {
-            const ids = pickN([...Array(POOL_SIZE)].map((_, i) => i + 1), 4);
+            const ids = pickN([...Array(this.cfg.poolSize)].map((_, i) => i + 1), 4);
             const mons = await Promise.all(ids.map(fetchPokemon));
             const correct = mons[0];
             if (correct.moves.length < 4) continue;
@@ -637,7 +768,7 @@ class PokemonQuizInstance {
         // and ask which Pokémon it evolves to/from. Distractors are random
         // Gen 1 Pokémon (excluding the source and the answer).
         for (let attempt = 0; attempt < 8; attempt++) {
-            const id = 1 + Math.floor(Math.random() * POOL_SIZE);
+            const id = 1 + Math.floor(Math.random() * this.cfg.poolSize);
             try {
                 const species = await fetchSpecies(id);
                 if (!species.evolution_chain?.url) continue;
@@ -673,7 +804,7 @@ class PokemonQuizInstance {
                 const exclude = new Set<number>([id, correctId]);
                 const distractorIds: number[] = [];
                 while (distractorIds.length < 3) {
-                    const cand = 1 + Math.floor(Math.random() * POOL_SIZE);
+                    const cand = 1 + Math.floor(Math.random() * this.cfg.poolSize);
                     if (exclude.has(cand)) continue;
                     exclude.add(cand);
                     distractorIds.push(cand);
@@ -704,6 +835,50 @@ class PokemonQuizInstance {
         return null;
     }
 
+    private async buildOrder(round: number, dim: "size" | "weight"): Promise<Question | null> {
+        // Pick four distinct Gen 1 Pokémon, ensure they have distinct height/weight
+        // values so there's a single canonical ordering.
+        for (let attempt = 0; attempt < 6; attempt++) {
+            const ids = pickN([...Array(this.cfg.poolSize)].map((_, i) => i + 1), 4);
+            const mons = await Promise.all(ids.map(fetchPokemon));
+            const valueOf = (m: ApiPokemon) => (dim === "size" ? m.height : m.weight);
+            const values = mons.map(valueOf);
+            // Reject if any duplicates — keeps the canonical order unambiguous.
+            if (new Set(values).size !== values.length) continue;
+
+            // Display the Pokémon in shuffled order; correctOrder is the ascending
+            // permutation of these display indices.
+            const display = shuffle(mons);
+            const opts = display.map((m) => titleCase(m.name));
+            const optionImages = display.map((m) => spriteUrl(m));
+            const optionMeta = display.map((m) =>
+                dim === "size" ? formatHeight(m.height) : formatWeight(m.weight),
+            );
+            const correctOrder = display
+                .map((m, i) => ({ i, v: valueOf(m) }))
+                .sort((a, b) => a.v - b.v)
+                .map((x) => x.i);
+
+            return this.makeQuestion({
+                round,
+                type: dim === "size" ? "order-size" : "order-weight",
+                promptText: dim === "size"
+                    ? "Drag the Pokémon into order, smallest → largest."
+                    : "Drag the Pokémon into order, lightest → heaviest.",
+                images: [],
+                silhouette: false,
+                options: opts,
+                optionImages,
+                optionMeta,
+                correctOrder,
+                revealName: display
+                    .map((m, i) => `${titleCase(m.name)} (${optionMeta[i]})`)
+                    .join(", "),
+            });
+        }
+        return null;
+    }
+
     private makeQuestion(partial: Omit<Question, "id" | "deadline" | "hostId">): Question {
         return {
             ...partial,
@@ -717,6 +892,7 @@ class PokemonQuizInstance {
 
     private vote(idx: number): void {
         if (!this.currentQuestion || this.currentReveal) return;
+        if (isOrderingRound(this.currentQuestion.type)) return;
         if (Date.now() > this.currentQuestion.deadline) return;
         if (this.myVote !== null) return; // one vote per round
         this.myVote = idx;
@@ -727,6 +903,33 @@ class PokemonQuizInstance {
         if (this.isHost && this.votes.size >= this.net.peers.size) {
             this.endRoundEarly();
         }
+    }
+
+    private submitOrder(): void {
+        const q = this.currentQuestion;
+        if (!q || this.currentReveal) return;
+        if (!isOrderingRound(q.type)) return;
+        if (Date.now() > q.deadline) return;
+        if (this.orderSubmitted || !this.myOrder) return;
+        this.orderSubmitted = true;
+        this.orderVotes.set(this.net.me.id, this.myOrder.slice());
+        this.votes.set(this.net.me.id, 0);
+        this.ns.send("order-vote", { id: q.id, order: this.myOrder.slice() });
+        this.renderStage();
+        if (this.isHost && this.votes.size >= this.net.peers.size) {
+            this.endRoundEarly();
+        }
+    }
+
+    private moveOrderItem(from: number, to: number): void {
+        if (!this.myOrder || this.orderSubmitted || this.currentReveal) return;
+        if (from === to || from < 0 || to < 0) return;
+        if (from >= this.myOrder.length || to >= this.myOrder.length) return;
+        const next = this.myOrder.slice();
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        this.myOrder = next;
+        this.renderStage();
     }
 
     // ---------- rendering ----------
@@ -773,35 +976,39 @@ class PokemonQuizInstance {
             }
         }
 
-        const optionsHtml = q.options.map((opt, i) => {
-            const isCorrect = reveal && i === q.correctIdx;
-            const isWrongMine = reveal && this.myVote === i && i !== q.correctIdx;
-            const isMine = this.myVote === i;
-            const voteCount = [...this.votes.values()].filter((v) => v === i).length;
-            const optImg = q.optionImages?.[i];
-            const cls = [
-                "pq-option",
-                optImg ? "pq-option-with-image" : "",
-                isMine ? "pq-mine" : "",
-                reveal && isCorrect ? "pq-correct" : "",
-                isWrongMine ? "pq-wrong" : "",
-            ].filter(Boolean).join(" ");
-            const typeColor = q.type === "pokedex" || q.type === "dual-type"
-                ? this.optionAccent(opt)
-                : "";
-            const accent = typeColor ? `style="--pq-accent:${typeColor}"` : "";
-            const imgHtml = optImg
-                ? `<img class="pq-option-image" src="${escapeHtml(optImg)}" alt="" draggable="false" />`
-                : "";
-            return `
-        <button type="button" class="${cls}" data-idx="${i}" ${accent}
-          ${reveal || this.myVote !== null ? "disabled" : ""}>
-          ${imgHtml}
-          <span class="pq-option-label">${escapeHtml(opt)}</span>
-          ${reveal ? `<span class="pq-option-count">${voteCount}</span>` : ""}
-        </button>
-      `;
-        }).join("");
+        const ordering = isOrderingRound(q.type);
+
+        const optionsHtml = ordering
+            ? this.renderOrderHtml(q, reveal !== null)
+            : q.options.map((opt, i) => {
+                const isCorrect = reveal && i === q.correctIdx;
+                const isWrongMine = reveal && this.myVote === i && i !== q.correctIdx;
+                const isMine = this.myVote === i;
+                const voteCount = [...this.votes.values()].filter((v) => v === i).length;
+                const optImg = q.optionImages?.[i];
+                const cls = [
+                    "pq-option",
+                    optImg ? "pq-option-with-image" : "",
+                    isMine ? "pq-mine" : "",
+                    reveal && isCorrect ? "pq-correct" : "",
+                    isWrongMine ? "pq-wrong" : "",
+                ].filter(Boolean).join(" ");
+                const typeColor = q.type === "pokedex" || q.type === "dual-type"
+                    ? this.optionAccent(opt)
+                    : "";
+                const accent = typeColor ? `style="--pq-accent:${typeColor}"` : "";
+                const imgHtml = optImg
+                    ? `<img class="pq-option-image" src="${escapeHtml(optImg)}" alt="" draggable="false" />`
+                    : "";
+                return `
+            <button type="button" class="${cls}" data-idx="${i}" ${accent}
+              ${reveal || this.myVote !== null ? "disabled" : ""}>
+              ${imgHtml}
+              <span class="pq-option-label">${escapeHtml(opt)}</span>
+              ${reveal ? `<span class="pq-option-count">${voteCount}</span>` : ""}
+            </button>
+          `;
+            }).join("");
 
         const remaining = Math.max(0, q.deadline - Date.now());
         const remSec = Math.ceil(remaining / 1000);
@@ -815,12 +1022,26 @@ class PokemonQuizInstance {
         const circ = 2 * Math.PI * 22;
         const dashOffset = reveal ? circ * (1 - revealRem / REVEAL_TOTAL_MS) : 0;
 
+        let revealText = "";
+        if (reveal) {
+            if (ordering && q.correctOrder && this.myOrder) {
+                let correct = 0;
+                for (let i = 0; i < q.correctOrder.length; i++) {
+                    if (this.myOrder[i] === q.correctOrder[i]) correct++;
+                }
+                revealText = this.orderSubmitted
+                    ? `You placed <strong>${correct} / ${q.correctOrder.length}</strong> correctly.`
+                    : `Correct order revealed below.`;
+            } else if (q.correctIdx !== undefined) {
+                revealText =
+                    `Answer: <strong>${escapeHtml(q.options[q.correctIdx])}</strong>` +
+                    ` · It was <strong>${escapeHtml(q.revealName)}</strong>`;
+            }
+        }
+
         const statusHtml = reveal
             ? `<div class="pq-reveal">
-                  <div class="pq-reveal-text">
-                    Answer: <strong>${escapeHtml(q.options[q.correctIdx])}</strong>
-                    · It was <strong>${escapeHtml(q.revealName)}</strong>
-                  </div>
+                  <div class="pq-reveal-text">${revealText}</div>
                   <div class="pq-next-timer" title="Next round">
                     <svg viewBox="0 0 56 56" width="56" height="56">
                       <circle cx="28" cy="28" r="22" fill="none"
@@ -856,6 +1077,113 @@ class PokemonQuizInstance {
         this.stageEl.querySelectorAll<HTMLButtonElement>(".pq-option").forEach((btn) => {
             const idx = Number(btn.dataset.idx);
             btn.addEventListener("click", () => this.vote(idx));
+        });
+
+        // Wire up the ordering UI.
+        if (ordering) {
+            this.wireOrderInteractions();
+        }
+    }
+
+    private renderOrderHtml(q: Question, isReveal: boolean): string {
+        const order = this.myOrder ?? q.options.map((_, i) => i);
+        const correct = q.correctOrder;
+        const submitted = this.orderSubmitted || isReveal;
+        const items = order.map((optIdx, slot) => {
+            const name = q.options[optIdx];
+            const img = q.optionImages?.[optIdx];
+            const meta = q.optionMeta?.[optIdx];
+            const correctHere = isReveal && correct ? correct[slot] === optIdx : false;
+            const wrongHere = isReveal && correct ? correct[slot] !== optIdx : false;
+            const cls = [
+                "pq-order-item",
+                submitted ? "pq-order-locked" : "",
+                correctHere ? "pq-order-correct" : "",
+                wrongHere ? "pq-order-wrong" : "",
+            ].filter(Boolean).join(" ");
+            return `
+        <li class="${cls}" draggable="${!submitted}" data-slot="${slot}">
+          <span class="pq-order-rank">${slot + 1}</span>
+          ${img ? `<img class="pq-order-img" src="${escapeHtml(img)}" alt="" draggable="false" />` : ""}
+          <span class="pq-order-name">${escapeHtml(name)}</span>
+          ${isReveal && meta ? `<span class="pq-order-meta">${escapeHtml(meta)}</span>` : ""}
+          ${!submitted ? `<span class="pq-order-grip" aria-hidden="true">⋮⋮</span>` : ""}
+        </li>`;
+        }).join("");
+
+        const buttonHtml = !isReveal
+            ? `<div class="pq-order-actions">
+                  <button type="button" class="pq-order-submit" ${submitted ? "disabled" : ""}>
+                    ${submitted ? "Locked in" : "Lock in order"}
+                  </button>
+               </div>`
+            : "";
+
+        // On reveal, also render the canonical correct ordering so players can
+        // see what the right answer was, regardless of how they ordered theirs.
+        let correctHtml = "";
+        if (isReveal && correct) {
+            const correctItems = correct.map((optIdx, slot) => {
+                const name = q.options[optIdx];
+                const img = q.optionImages?.[optIdx];
+                const meta = q.optionMeta?.[optIdx];
+                return `
+            <li class="pq-order-item pq-order-locked pq-order-answer" data-slot="${slot}">
+              <span class="pq-order-rank">${slot + 1}</span>
+              ${img ? `<img class="pq-order-img" src="${escapeHtml(img)}" alt="" draggable="false" />` : ""}
+              <span class="pq-order-name">${escapeHtml(name)}</span>
+              ${meta ? `<span class="pq-order-meta">${escapeHtml(meta)}</span>` : ""}
+            </li>`;
+            }).join("");
+            correctHtml = `
+        <div class="pq-order-correct-heading">Correct order</div>
+        <ol class="pq-order-list pq-order-list-answer">${correctItems}</ol>`;
+        }
+
+        const yourHeading = isReveal
+            ? `<div class="pq-order-correct-heading">Your order</div>`
+            : "";
+
+        return `${yourHeading}<ol class="pq-order-list">${items}</ol>${buttonHtml}${correctHtml}`;
+    }
+
+    private wireOrderInteractions(): void {
+        const list = this.stageEl.querySelector<HTMLOListElement>(".pq-order-list");
+        if (!list) return;
+        const submit = this.stageEl.querySelector<HTMLButtonElement>(".pq-order-submit");
+        submit?.addEventListener("click", () => this.submitOrder());
+        if (this.orderSubmitted || this.currentReveal) return;
+
+        let dragFrom: number | null = null;
+        list.querySelectorAll<HTMLLIElement>(".pq-order-item").forEach((li) => {
+            li.addEventListener("dragstart", (e) => {
+                dragFrom = Number(li.dataset.slot);
+                li.classList.add("pq-order-dragging");
+                e.dataTransfer?.setData("text/plain", String(dragFrom));
+                if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+            });
+            li.addEventListener("dragend", () => {
+                li.classList.remove("pq-order-dragging");
+                list.querySelectorAll(".pq-order-over").forEach((el) =>
+                    el.classList.remove("pq-order-over"),
+                );
+                dragFrom = null;
+            });
+            li.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                li.classList.add("pq-order-over");
+            });
+            li.addEventListener("dragleave", () => li.classList.remove("pq-order-over"));
+            li.addEventListener("drop", (e) => {
+                e.preventDefault();
+                li.classList.remove("pq-order-over");
+                const to = Number(li.dataset.slot);
+                const from = dragFrom ?? Number(e.dataTransfer?.getData("text/plain"));
+                if (Number.isFinite(from) && Number.isFinite(to)) {
+                    this.moveOrderItem(from, to);
+                }
+            });
         });
     }
 

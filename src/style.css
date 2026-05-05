@@ -3364,6 +3364,140 @@ label {
     image-rendering: auto;
 }
 
+/* ----- Pokémon Quiz: ordering rounds ----- */
+.pq-order-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pq-order-item {
+    display: grid;
+    grid-template-columns: 28px 56px 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-2);
+    cursor: grab;
+    user-select: none;
+    transition: background 0.1s ease, border-color 0.1s ease, transform 0.05s ease;
+}
+
+.pq-order-item:active {
+    cursor: grabbing;
+}
+
+.pq-order-locked {
+    cursor: default;
+    opacity: 0.95;
+}
+
+.pq-order-dragging {
+    opacity: 0.4;
+}
+
+.pq-order-over {
+    border-color: var(--accent);
+    background: var(--panel);
+}
+
+.pq-order-correct {
+    background: #d6efdc;
+    border-color: #2d8a4f;
+}
+
+.pq-order-wrong {
+    background: #f3d6cb;
+    border-color: #c2542a;
+}
+
+.pq-order-rank {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.pq-order-img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+
+.pq-order-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--ink);
+}
+
+.pq-order-meta {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    background: rgba(0, 0, 0, 0.06);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.pq-order-grip {
+    color: var(--muted);
+    font-size: 18px;
+    letter-spacing: -2px;
+}
+
+.pq-order-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.pq-order-submit {
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 14px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.1s ease;
+}
+
+.pq-order-submit:hover:not(:disabled) {
+    filter: brightness(1.05);
+}
+
+.pq-order-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pq-order-correct-heading {
+    margin-top: 12px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.pq-order-list-answer .pq-order-item {
+    background: var(--panel);
+    border-style: dashed;
+}
+
+.pq-order-answer {
+    cursor: default;
+}
+
 .pq-status {
     display: flex;
     justify-content: space-between;
