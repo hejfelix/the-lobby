@@ -346,6 +346,11 @@ class PokemonQuizInstance {
     private rafId: number | null = null;
     private unsubPeers: (() => void) | null = null;
 
+    // --- audio ---
+    private audio: AudioContext | null = null;
+    /** Last whole-second value we played a tick for, so we don't repeat. */
+    private lastTickSec = -1;
+
     private stageEl!: HTMLDivElement;
     private sidebarEl!: HTMLDivElement;
 
@@ -414,8 +419,73 @@ class PokemonQuizInstance {
         if (this.hostNextTimer != null) clearTimeout(this.hostNextTimer);
         if (this.hostRevealTimer != null) clearTimeout(this.hostRevealTimer);
         this.unsubPeers?.();
+        this.audio?.close().catch(() => { /* ignore */ });
         this.ns.close();
         this.container.innerHTML = "";
+    }
+
+    // ---------- audio ----------
+
+    /** Lazy-init audio context (browsers require a user gesture). */
+    private ensureAudio(): AudioContext | null {
+        if (this.audio) return this.audio;
+        try {
+            const Ctor =
+                window.AudioContext ??
+                (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!Ctor) return null;
+            this.audio = new Ctor();
+            return this.audio;
+        } catch {
+            return null;
+        }
+    }
+
+    private playTone(freq: number, dur: number, opts: { type?: OscillatorType; gain?: number; sweepTo?: number; delay?: number } = {}): void {
+        const ctx = this.audio;
+        if (!ctx) return;
+        if (ctx.state === "suspended") ctx.resume().catch(() => { /* ignore */ });
+        const t0 = ctx.currentTime + (opts.delay ?? 0);
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = opts.type ?? "sine";
+        osc.frequency.setValueAtTime(freq, t0);
+        if (opts.sweepTo !== undefined) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(40, opts.sweepTo), t0 + dur);
+        }
+        const peak = opts.gain ?? 0.18;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(peak, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.05);
+    }
+
+    /** Two-note descending blip when a new question lands. */
+    private playNewQuestion(): void {
+        if (!this.ensureAudio()) return;
+        this.playTone(660, 0.12, { type: "triangle", gain: 0.14 });
+        this.playTone(880, 0.18, { type: "triangle", gain: 0.14, delay: 0.1 });
+    }
+
+    /** Short tick for the final 5 seconds of voting. */
+    private playTick(): void {
+        if (!this.ensureAudio()) return;
+        this.playTone(1200, 0.05, { type: "square", gain: 0.08 });
+    }
+
+    /** Rising arpeggio for the local player getting it right. */
+    private playCorrect(): void {
+        if (!this.ensureAudio()) return;
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((f, i) => this.playTone(f, 0.18, { type: "triangle", gain: 0.16, delay: i * 0.07 }));
+    }
+
+    /** Low buzz for a wrong answer. */
+    private playWrong(): void {
+        if (!this.ensureAudio()) return;
+        this.playTone(220, 0.35, { type: "sawtooth", gain: 0.14, sweepTo: 110 });
     }
 
     // ---------- networking ----------
@@ -435,6 +505,8 @@ class PokemonQuizInstance {
             this.votes.clear();
             this.orderVotes.clear();
             this.roundNum = q.round;
+            this.lastTickSec = -1;
+            this.playNewQuestion();
             this.renderStage();
         });
 
@@ -478,6 +550,7 @@ class PokemonQuizInstance {
             this.currentReveal = r;
             this.revealStartT = Date.now();
             this.scores = new Map(Object.entries(r.scores));
+            this.playRevealOutcome();
             this.renderStage();
             this.renderSidebar();
         });
@@ -615,9 +688,29 @@ class PokemonQuizInstance {
         this.currentReveal = reveal;
         this.revealStartT = Date.now();
         this.ns.send("reveal", reveal);
+        this.playRevealOutcome();
         this.renderStage();
         this.renderSidebar();
         this.scheduleNextRound(REVEAL_DURATION_MS + PICK_DELAY_MS);
+    }
+
+    /** Play correct/wrong sound based on the local player's answer this round. */
+    private playRevealOutcome(): void {
+        const q = this.currentQuestion;
+        const r = this.currentReveal;
+        if (!q || !r) return;
+        if (isOrderingRound(q.type) && r.correctOrder && this.myOrder && this.orderSubmitted) {
+            let correctCount = 0;
+            for (let i = 0; i < r.correctOrder.length; i++) {
+                if (this.myOrder[i] === r.correctOrder[i]) correctCount++;
+            }
+            // Half or more in the right slot counts as a "correct" vibe.
+            if (correctCount >= Math.ceil(r.correctOrder.length / 2)) this.playCorrect();
+            else this.playWrong();
+        } else if (this.myVote !== null && r.correctIdx !== undefined) {
+            if (this.myVote === r.correctIdx) this.playCorrect();
+            else this.playWrong();
+        }
     }
 
     // ---------- question builders ----------
@@ -1076,7 +1169,7 @@ class PokemonQuizInstance {
         // Wire up option buttons.
         this.stageEl.querySelectorAll<HTMLButtonElement>(".pq-option").forEach((btn) => {
             const idx = Number(btn.dataset.idx);
-            btn.addEventListener("click", () => this.vote(idx));
+            btn.addEventListener("click", () => { this.ensureAudio(); this.vote(idx); });
         });
 
         // Wire up the ordering UI.
@@ -1151,12 +1244,13 @@ class PokemonQuizInstance {
         const list = this.stageEl.querySelector<HTMLOListElement>(".pq-order-list");
         if (!list) return;
         const submit = this.stageEl.querySelector<HTMLButtonElement>(".pq-order-submit");
-        submit?.addEventListener("click", () => this.submitOrder());
+        submit?.addEventListener("click", () => { this.ensureAudio(); this.submitOrder(); });
         if (this.orderSubmitted || this.currentReveal) return;
 
         let dragFrom: number | null = null;
         list.querySelectorAll<HTMLLIElement>(".pq-order-item").forEach((li) => {
             li.addEventListener("dragstart", (e) => {
+                this.ensureAudio();
                 dragFrom = Number(li.dataset.slot);
                 li.classList.add("pq-order-dragging");
                 e.dataTransfer?.setData("text/plain", String(dragFrom));
@@ -1233,5 +1327,10 @@ class PokemonQuizInstance {
         const text = `${remSec}s`;
         if (timerEl.textContent !== text) timerEl.textContent = text;
         timerEl.classList.toggle("pq-timer-warn", remSec <= 5);
+        // Tick once per second during the final 5s.
+        if (remSec > 0 && remSec <= 5 && remSec !== this.lastTickSec) {
+            this.lastTickSec = remSec;
+            this.playTick();
+        }
     }
 }
