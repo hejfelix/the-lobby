@@ -132,13 +132,22 @@ class MarketInstance {
     private unsubPeers: (() => void) | null = null;
 
     private onKey = (e: KeyboardEvent) => {
-        if (e.code !== "Space") return;
-        // Don't steal space from chat input or other text fields.
+        // Don't steal keys from chat input or other text fields.
         const t = e.target as HTMLElement | null;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-        e.preventDefault();
-        this.ensureAudio();
-        this.toggleTrade();
+        if (e.code === "Space") {
+            e.preventDefault();
+            this.ensureAudio();
+            this.toggleTrade();
+        } else if (e.code === "KeyQ") {
+            e.preventDefault();
+            this.ensureAudio();
+            this.fireInfluence("pump");
+        } else if (e.code === "KeyE") {
+            e.preventDefault();
+            this.ensureAudio();
+            this.fireInfluence("tank");
+        }
     };
 
     constructor(container: HTMLElement, net: Net) {
@@ -152,8 +161,8 @@ class MarketInstance {
             <label>How to play</label>
             <p class="hint">
               Press <kbd>space</kbd> to toggle between holding shares and holding cash.
-              The market drifts randomly. Use PUMP and TANK to swing it &mdash;
-              effects are global and stack across players.
+              The market drifts randomly. Use <kbd>Q</kbd> to PUMP and <kbd>E</kbd> to TANK
+              &mdash; effects are global and stack across players.
             </p>
           </div>
           <div class="tool-group">
@@ -164,11 +173,10 @@ class MarketInstance {
           </div>
           <div class="tool-group">
             <label>Powers</label>
-            <div class="market-powers">
-              <button type="button" class="market-pump">PUMP</button>
-              <button type="button" class="market-tank">TANK</button>
-            </div>
-            <p class="hint">5s effect, 10s cooldown each.</p>
+            <p class="hint">
+              PUMP and TANK swing the market for 5s (10s cooldown). Effects
+              stack across players &mdash; coordinate to move the price.
+            </p>
           </div>
           <div class="tool-group">
             <label>Leaderboard <span class="muted">(portfolio value)</span></label>
@@ -192,7 +200,18 @@ class MarketInstance {
                   font-family="ui-monospace, monospace" font-size="22" font-weight="700" fill="#2d5a4f">30</text>
               </svg>
             </div>
-            <button type="button" class="market-trade">SELL</button>
+            <button type="button" class="market-pump market-power-btn">
+              <span class="market-btn-main">PUMP</span>
+              <kbd class="market-btn-kbd">Q</kbd>
+            </button>
+            <button type="button" class="market-trade">
+              <span class="market-btn-main">SELL</span>
+              <kbd class="market-btn-kbd market-btn-kbd-light">SPACE</kbd>
+            </button>
+            <button type="button" class="market-tank market-power-btn">
+              <span class="market-btn-main">TANK</span>
+              <kbd class="market-btn-kbd">E</kbd>
+            </button>
           </div>
         </section>
       </div>
@@ -444,8 +463,10 @@ class MarketInstance {
         };
         const pumpText = "PUMP" + fmt(this.pumpReadyAt);
         const tankText = "TANK" + fmt(this.tankReadyAt);
-        if (this.pumpBtn.textContent !== pumpText) this.pumpBtn.textContent = pumpText;
-        if (this.tankBtn.textContent !== tankText) this.tankBtn.textContent = tankText;
+        const pumpLabel = this.pumpBtn.querySelector<HTMLElement>(".market-btn-main");
+        const tankLabel = this.tankBtn.querySelector<HTMLElement>(".market-btn-main");
+        if (pumpLabel && pumpLabel.textContent !== pumpText) pumpLabel.textContent = pumpText;
+        if (tankLabel && tankLabel.textContent !== tankText) tankLabel.textContent = tankText;
         this.pumpBtn.disabled = now < this.pumpReadyAt;
         this.tankBtn.disabled = now < this.tankReadyAt;
     }
@@ -463,7 +484,8 @@ class MarketInstance {
         this.inactivityEl.classList.toggle("market-inactivity-warn", warn);
 
         // Big trade button label.
-        if (this.tradeBtn.textContent !== action) this.tradeBtn.textContent = action;
+        const tradeLabel = this.tradeBtn.querySelector<HTMLElement>(".market-btn-main");
+        if (tradeLabel && tradeLabel.textContent !== action) tradeLabel.textContent = action;
         this.tradeBtn.classList.toggle("market-trade-sell", action === "SELL");
         this.tradeBtn.classList.toggle("market-trade-buy", action === "BUY");
 

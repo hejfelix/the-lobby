@@ -89,11 +89,11 @@ const COURSES: Course[] = [
         tee: { x: 80, y: 250 },
         hole: { x: 660, y: 250 },
         walls: [],
+        // A wide water hazard in the middle with land corridors along the
+        // top and bottom edges, so players can route around it (or risk
+        // flying straight over for a shorter line).
         water: [
-            { x: 240, y: 0, w: 240, h: 130 },
-            { x: 240, y: 370, w: 240, h: 130 },
-            { x: 240, y: 130, w: 70, h: 240 },
-            { x: 410, y: 130, w: 70, h: 240 },
+            { x: 260, y: 110, w: 320, h: 280 },
         ],
     },
     {
