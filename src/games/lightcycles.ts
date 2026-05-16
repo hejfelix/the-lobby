@@ -384,6 +384,11 @@ class LightcyclesInstance {
         if (killerId && killerId !== this.net.me.id && this.net.peers.has(killerId)) {
             // Score awarded by host on their machine. Don't double-award.
         }
+        // Trystero doesn't echo messages back to the sender, so the host's
+        // "dead" handler never fires for the host's own death. Run the
+        // round-end check locally so solo play (and host self-crashes)
+        // still schedule the next round.
+        if (this.isHost()) this.maybeEndRound();
     }
 
     /**
@@ -404,6 +409,16 @@ class LightcyclesInstance {
                 if (isSelf && i === headIdx) {
                     // The active segment is the line from `a` to my own head.
                     // Trim its end so I don't insta-die on my own bike.
+                    const trimmed = trimSegmentEnd(a, b, HEAD_SAFE_DIST);
+                    if (!trimmed) continue;
+                    if (pointHitsSegment(me.x, me.y, a, trimmed, 2)) return id;
+                    continue;
+                }
+                // Just-turned: the segment leading INTO the latest turn point
+                // ends exactly where the head currently is, which would trigger
+                // a false self-collision on the very next frame. Trim its end
+                // for the same reason as the active segment above.
+                if (isSelf && i === headIdx - 1) {
                     const trimmed = trimSegmentEnd(a, b, HEAD_SAFE_DIST);
                     if (!trimmed) continue;
                     if (pointHitsSegment(me.x, me.y, a, trimmed, 2)) return id;
