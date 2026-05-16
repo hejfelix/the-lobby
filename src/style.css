@@ -3569,3 +3569,139 @@ label {
         align-items: center;
     }
 }
+
+/* ── Chaos Breakout ─────────────────────────────────────────────── */
+.breakout-stage {
+    position: relative;
+}
+
+.breakout-canvas {
+    cursor: none;
+    background: #11141a;
+}
+
+.breakout-wave {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.breakout-effects {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.breakout-effect-tag {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.breakout-scoreboard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.breakout-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.breakout-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.breakout-token {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.breakout-flash {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.breakout-flash-on {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ── Sumo Brawl ─────────────────────────────────────────────────── */
+.sumo-stage {
+    background: #11141a;
+}
+
+.sumo-canvas {
+    background: #1a1d24;
+    cursor: crosshair;
+    outline: none;
+}
+
+.sumo-scoreboard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sumo-cooldown {
+    height: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.sumo-cooldown-fill {
+    height: 100%;
+    width: 100%;
+    background: #7ed957;
+    transition: width 80ms linear, background 200ms linear;
+}
+
+/* ── Lightcycles ────────────────────────────────────────────────── */
+.lc-stage {
+    background: #050a14;
+}
+
+.lc-canvas {
+    background: #080d18;
+    cursor: crosshair;
+    outline: none;
+}
+
+.lc-scoreboard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lc-status {
+    font-size: 13px;
+    color: var(--muted);
+}
