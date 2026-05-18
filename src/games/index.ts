@@ -15,6 +15,7 @@ import { DashGame } from "./dash";
 import { BreakoutGame } from "./breakout";
 import { SumoGame } from "./sumo";
 import { LightcyclesGame } from "./lightcycles";
+import { CryptCrawlersGame } from "./crypt";
 
 export const GAMES: Game[] = [
     SketchGame,
@@ -33,6 +34,7 @@ export const GAMES: Game[] = [
     BreakoutGame,
     SumoGame,
     LightcyclesGame,
+    CryptCrawlersGame,
     MinigolfGame,
     PokemonQuizEasyGame,
     PokemonQuizMediumGame,
